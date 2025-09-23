@@ -12,25 +12,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = LightBlue,
+    secondary = SoftBlue,
+    tertiary = MediumBlue,
+    background = DarkGray,
+    surface = MediumGray,
+    onPrimary = PureWhite,
+    onSecondary = PureWhite,
+    onTertiary = PureWhite,
+    onBackground = SoftWhite,
+    onSurface = SoftWhite
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = DeepBlue,
+    secondary = MediumBlue,
+    tertiary = LightBlue,
+    background = SoftWhite,
+    surface = PureWhite,
+    onPrimary = PureWhite,
+    onSecondary = PureWhite,
+    onTertiary = PureWhite,
+    onBackground = DarkGray,
+    onSurface = DarkGray
 )
 
 @Composable
@@ -52,7 +56,7 @@ fun Tomar_Foto_ComposeTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = AppTypography,
         content = content
     )
 }

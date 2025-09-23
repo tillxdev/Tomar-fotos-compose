@@ -8,13 +8,24 @@ import androidx.activity.compose.setContent
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.tomar_foto_compose.ui.theme.CameraScreen
-
+import com.example.tomar_foto_compose.ui.theme.Tomar_Foto_ComposeTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Solicitar permisos de cámara y almacenamiento
+        // 🔐 Solicitar permisos de cámara y almacenamiento
+        requestPermissions()
+
+        val viewModel = CameraViewModel()
+        setContent {
+            Tomar_Foto_ComposeTheme {
+                CameraScreen(viewModel)
+            }
+        }
+    }
+
+    private fun requestPermissions() {
         val permissionsToRequest = mutableListOf<String>()
         
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
@@ -34,11 +45,6 @@ class MainActivity : ComponentActivity() {
         
         if (permissionsToRequest.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), 0)
-        }
-
-        val viewModel = CameraViewModel()
-        setContent {
-            CameraScreen(viewModel)
         }
     }
 }

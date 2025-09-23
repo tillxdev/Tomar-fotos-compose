@@ -15,31 +15,23 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,118 +56,241 @@ fun CameraScreen(viewModel: CameraViewModel) {
 
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
 
-    Column {
-        // Cabecera
-        Column(
-            modifier = Modifier.fillMaxSize()
+    // Gradiente para el fondo
+    val backgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFF1E3A8A), // Azul oscuro
+            Color(0xFF3B82F6), // Azul medio
+            Color(0xFF60A5FA)  // Azul claro
+        )
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(backgroundGradient)
+    ) {
+        // 🎨 HEADER MODERNO CON GRADIENTE
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            //  CABECERA CON TOOLBAR
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Capturar Fotos",
-                            fontSize = 20.sp,
-                            color = Color.White
-                        )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "📸 Captura Fotos",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E3A8A)
+                    )
+                    Text(
+                        text = "Toca el botón para capturar",
+                        fontSize = 14.sp,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+                Text(
+                    text = "📱",
+                    fontSize = 32.sp
+                )
+            }
+        }
+
+        // 📱 VISTA DE CÁMARA CON ESTILO
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .shadow(12.dp, RoundedCornerShape(20.dp)),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.Black)
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    PreviewView(ctx).apply {
+                        scaleType = PreviewView.ScaleType.FILL_CENTER
+                    }.also { previewView ->
+                        cameraProviderFuture.addListener({
+                            val cameraProvider = cameraProviderFuture.get()
+                            val preview = Preview.Builder().build().also {
+                                it.setSurfaceProvider(previewView.surfaceProvider)
+                            }
+
+                            val capture = ImageCapture.Builder()
+                                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                                .build()
+                            imageCapture = capture
+
+                            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+                            try {
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner, cameraSelector, preview, capture
+                                )
+                            } catch (exc: Exception) {
+                                Log.e("Camera", "Error al inicializar cámara", exc)
+                            }
+                        }, ContextCompat.getMainExecutor(ctx))
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF00695C))
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+                    .clip(RoundedCornerShape(20.dp))
             )
+        }
 
-            //Cuerpo
-            AndroidView(factory = { ctx ->
-                PreviewView(ctx).also { previewView ->
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build().also {
-                            it.setSurfaceProvider(previewView.surfaceProvider)
-                        }
+        Spacer(modifier = Modifier.height(24.dp))
 
-                        val capture = ImageCapture.Builder().build()
-                        imageCapture = capture
+        // 🎯 BOTÓN DE CAPTURA ELEGANTE
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    capturePhoto(context, imageCapture, viewModel)
+                },
+                modifier = Modifier
+                    .size(80.dp)
+                    .shadow(8.dp, CircleShape),
+                containerColor = Color.White,
+                contentColor = Color(0xFF1E3A8A)
+            ) {
+                Text(
+                    text = "📸",
+                    fontSize = 32.sp
+                )
+            }
+        }
 
-                        val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+        Spacer(modifier = Modifier.height(16.dp))
 
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner, cameraSelector, preview, capture
+        // 🖼️ GALERÍA DE FOTOS HORIZONTAL
+        if (viewModel.photos.isNotEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    ) {
+                        Text(
+                            text = "🖼️",
+                            fontSize = 20.sp
                         )
-                    }, ContextCompat.getMainExecutor(ctx))
-                }
-            }, modifier = Modifier.size(250.dp))
-
-            Spacer(modifier = Modifier.size(40.dp))
-
-            Button(onClick = {
-                // Crear nombre único para la foto
-                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                val fileName = "foto_$timeStamp.jpg"
-                
-                // Crear archivo temporal
-                val tempFile = File(context.cacheDir, fileName)
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
-
-                imageCapture?.takePicture(
-                    outputOptions,
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                            try {
-                                // Guardar la foto en la galería
-                                savePhotoToGallery(context, tempFile, fileName)
-                                
-                                // Agregar al ViewModel para mostrar en la lista
-                                val bitmap = BitmapFactory.decodeFile(tempFile.absolutePath)
-                                viewModel.addPhoto(bitmap)
-                                
-                                // Mostrar mensaje de éxito
-                                Toast.makeText(context, "Foto guardada en: Pictures/MisCapturasApp/$fileName", Toast.LENGTH_LONG).show()
-                                
-                                // Eliminar archivo temporal
-                                tempFile.delete()
-                            } catch (e: Exception) {
-                                Log.e("Camera", "Error guardando la foto: ${e.message}")
-                                Toast.makeText(context, "Error al guardar la foto", Toast.LENGTH_SHORT).show()
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Fotos capturadas (${viewModel.photos.size})",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF1E3A8A)
+                        )
+                    }
+                    
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(viewModel.photos) { photo ->
+                            Card(
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .shadow(4.dp, RoundedCornerShape(12.dp)),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Image(
+                                    bitmap = photo.asImageBitmap(),
+                                    contentDescription = "Foto capturada",
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
                         }
-
-                        override fun onError(exception: ImageCaptureException) {
-                            Log.e("Camera", "Error capturando la foto: ${exception.message}")
-                            Toast.makeText(context, "Error al capturar la foto", Toast.LENGTH_SHORT).show()
-                        }
                     }
-                )
-            }) {
-                Text("Capturar Foto")
-            }
-
-            LazyColumn {
-                items(viewModel.photos) { photo ->
-                    Image(
-                        bitmap = photo.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier.size(200.dp)
-                    )
                 }
             }
         }
-        
-        //pie de pagina
-        Text(
-            text = "© 2025 UNP Informática • Piura, Perú",
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        // 👨‍💻 FOOTER ELEGANTE
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp,
-            color = Color.Red
-        )
+                .padding(top = 16.dp),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f))
+        ) {
+            Text(
+                text = "© 2025 UNP Informática • Piura, Perú",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                textAlign = TextAlign.Center,
+                fontSize = 12.sp,
+                color = Color(0xFF6B7280),
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
+}
+
+/**
+ * 📸 Función auxiliar para capturar fotos con estilo
+ */
+private fun capturePhoto(context: Context, imageCapture: ImageCapture?, viewModel: CameraViewModel) {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val fileName = "foto_$timeStamp.jpg"
+    
+    val tempFile = File(context.cacheDir, fileName)
+    val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
+
+    imageCapture?.takePicture(
+        outputOptions,
+        ContextCompat.getMainExecutor(context),
+        object : ImageCapture.OnImageSavedCallback {
+            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                try {
+                    savePhotoToGallery(context, tempFile, fileName)
+                    
+                    val bitmap = BitmapFactory.decodeFile(tempFile.absolutePath)
+                    viewModel.addPhoto(bitmap)
+                    
+                    Toast.makeText(
+                        context, 
+                        "✅ Foto guardada en Pictures/MisCapturasApp", 
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    
+                    tempFile.delete()
+                } catch (e: Exception) {
+                    Log.e("Camera", "Error guardando la foto: ${e.message}")
+                    Toast.makeText(context, "❌ Error al guardar la foto", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onError(exception: ImageCaptureException) {
+                Log.e("Camera", "Error capturando la foto: ${exception.message}")
+                Toast.makeText(context, "❌ Error al capturar la foto", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
 }
 
 /**
