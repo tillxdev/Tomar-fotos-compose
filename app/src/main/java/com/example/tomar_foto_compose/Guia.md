@@ -1,778 +1,558 @@
-→ AndroidManifest.xml
-=====================
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-xmlns:tools="http://schemas.android.com/tools">
-<uses-feature android:name="android.hardware.camera" android:required="false" />
-<uses-feature android:name="android.hardware.camera.front" android:required="false" />
+# 📸 Guía Completa: Aplicación de Cámara en Kotlin con Jetpack Compose
+
+## 🎯 Introducción
+Esta guía explica paso a paso cómo funciona nuestra aplicación de cámara desarrollada en Kotlin usando Jetpack Compose y CameraX. La aplicación permite capturar fotos, guardarlas automáticamente en la galería del dispositivo y mostrar una interfaz moderna y elegante.
+
+---
+
+## 📁 Estructura del Proyecto
+
+### 🏗️ Arquitectura General
+```
+app/
+├── src/main/
+│   ├── AndroidManifest.xml    # Configuración de permisos y actividades
+│   └── java/com/example/tomar_foto_compose/
+│       ├── MainActivity.kt           # Actividad principal
+│       ├── CameraViewModel.kt        # Manejo de datos
+│       └── ui/theme/
+│           ├── CameraScreen.kt       # Interfaz de la cámara
+│           ├── Color.kt             # Colores del tema
+│           ├── Theme.kt             # Configuración del tema
+│           └── Type.kt              # Tipografías
+```
+
+---
+
+## 🔐 1. CONFIGURACIÓN DE PERMISOS (AndroidManifest.xml)
+
+### ¿Qué hace este archivo?
+El `AndroidManifest.xml` es como la "tarjeta de presentación" de tu aplicación. Le dice al sistema Android qué puede hacer tu app.
+
+```xml
 <uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+```
 
+**Explicación línea por línea:**
+- `CAMERA`: Permite usar la cámara del dispositivo
+- `WRITE_EXTERNAL_STORAGE`: Permite guardar archivos en el almacenamiento
+- `READ_EXTERNAL_STORAGE`: Permite leer archivos del almacenamiento
 
-    <application
-        android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Tomar_Foto_Compose">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.Tomar_Foto_Compose">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+**¿Por qué necesitamos esto?**
+Android es muy estricto con la seguridad. Sin estos permisos, nuestra app no podría acceder a la cámara ni guardar fotos.
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
+---
 
-</manifest>
-=============================
-→ CameraScreen.kt
-=============================
-package com.example.tomar_foto_compose.ui.theme
+## 🚀 2. ACTIVIDAD PRINCIPAL (MainActivity.kt)
 
-import android.graphics.BitmapFactory
-import android.util.Log
+### ¿Qué es una Activity?
+Una Activity es como una "pantalla" de tu aplicación. Es el punto de entrada principal.
+
+```kotlin
+class MainActivity : ComponentActivity() {
+```
+**Explicación:**
+- `class`: Palabra clave para crear una clase en Kotlin
+- `MainActivity`: Nombre de nuestra clase
+- `: ComponentActivity()`: Hereda de ComponentActivity (una clase especial para Compose)
+
+### Función onCreate()
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+```
+**¿Qué significa esto?**
+- `override`: Sobrescribimos una función que ya existe
+- `onCreate`: Se ejecuta cuando se crea la actividad (como un constructor)
+- `super.onCreate()`: Llama a la función padre primero
+
+### Solicitud de Permisos
+```kotlin
+private fun requestPermissions() {
+    val permissionsToRequest = mutableListOf<String>()
+```
+**Explicación:**
+- `private`: Solo esta clase puede usar esta función
+- `fun`: Palabra clave para crear una función
+- `mutableListOf<String>()`: Crea una lista que puede cambiar, de textos
+
+```kotlin
+if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+    != PackageManager.PERMISSION_GRANTED) {
+    permissionsToRequest.add(Manifest.permission.CAMERA)
+}
+```
+**¿Qué hace esto?**
+1. Verifica si ya tenemos permiso de cámara
+2. Si NO lo tenemos (`!= PERMISSION_GRANTED`), lo agrega a la lista
+3. Se repite para cada permiso que necesitamos
+
+### Configuración del Contenido UI
+```kotlin
+setContent {
+    Tomar_Foto_ComposeTheme {
+        CameraScreen(viewModel)
+    }
+}
+```
+**Explicación:**
+- `setContent`: Define qué se muestra en pantalla
+- `Tomar_Foto_ComposeTheme`: Aplica nuestro tema visual
+- `CameraScreen(viewModel)`: Muestra nuestra pantalla de cámara
+
+---
+
+## 🎨 3. MANEJO DE DATOS (CameraViewModel.kt)
+
+### ¿Qué es un ViewModel?
+Un ViewModel es como un "cerebro" que maneja los datos de tu aplicación. Sobrevive a cambios de configuración (como rotar el teléfono).
+
+```kotlin
+class CameraViewModel : ViewModel() {
+    private val _photos = mutableStateListOf<Bitmap>()
+    val photos: List<Bitmap> get() = _photos
+```
+
+**Explicación línea por línea:**
+- `private val _photos`: Lista privada que guarda las fotos (nadie más puede modificarla)
+- `mutableStateListOf<Bitmap>()`: Lista especial de Compose que actualiza la UI automáticamente
+- `Bitmap`: Formato de imagen en Android
+- `val photos: List<Bitmap> get() = _photos`: Versión pública de solo lectura
+
+### Función para Agregar Fotos
+```kotlin
+fun addPhoto(photo: Bitmap) {
+    _photos.add(photo)
+}
+```
+**¿Qué hace?**
+Agrega una nueva foto a nuestra lista. Al usar `mutableStateListOf`, la UI se actualiza automáticamente.
+
+---
+
+## 🎨 4. COLORES Y TEMA (Color.kt y Theme.kt)
+
+### Definición de Colores (Color.kt)
+```kotlin
+val DeepBlue = Color(0xFF1E3A8A)
+val MediumBlue = Color(0xFF3B82F6)
+val LightBlue = Color(0xFF60A5FA)
+```
+**Explicación:**
+- `val`: Variable inmutable (no cambia)
+- `Color(0xFF1E3A8A)`: Color en formato hexadecimal
+- `0xFF`: Significa que es completamente opaco
+- `1E3A8A`: Código de color azul oscuro
+
+### Configuración del Tema (Theme.kt)
+```kotlin
+private val LightColorScheme = lightColorScheme(
+    primary = DeepBlue,
+    secondary = MediumBlue,
+    background = SoftWhite,
+    surface = PureWhite
+)
+```
+**¿Qué define esto?**
+- `primary`: Color principal (botones importantes)
+- `secondary`: Color secundario (elementos menos importantes)
+- `background`: Color de fondo
+- `surface`: Color de tarjetas y superficies
+
+---
+
+## 📱 5. INTERFAZ DE USUARIO (CameraScreen.kt)
+
+### Imports Necesarios
+```kotlin
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.tomar_foto_compose.CameraViewModel
-import kotlinx.coroutines.delay
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import androidx.compose.foundation.background
+import androidx.compose.material3.*
+```
+**¿Para qué sirven?**
+- `camera.core.*`: Funcionalidades de la cámara
+- `compose.foundation.*`: Elementos básicos de UI
+- `material3.*`: Componentes de Material Design 3
 
-
-@OptIn(ExperimentalMaterial3Api::class)
+### Función Principal CameraScreen
+```kotlin
 @Composable
 fun CameraScreen(viewModel: CameraViewModel) {
+```
+**Explicación:**
+- `@Composable`: Marca que esta función crea UI
+- `fun CameraScreen`: Nombre de nuestra función
+- `viewModel: CameraViewModel`: Recibe nuestro ViewModel como parámetro
+
+### Variables de Estado
+```kotlin
 val context = LocalContext.current
 val lifecycleOwner = LocalLifecycleOwner.current
-val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+```
+**¿Qué hace cada una?**
+- `context`: Referencia al contexto de Android (necesario para muchas operaciones)
+- `lifecycleOwner`: Maneja el ciclo de vida (cuándo se pausa/resume la app)
+- `imageCapture`: Variable que guarda la configuración de captura de fotos
 
-    var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+### Gradiente de Fondo
+```kotlin
+val backgroundGradient = Brush.verticalGradient(
+    colors = listOf(
+        Color(0xFF1E3A8A), // Azul oscuro
+        Color(0xFF3B82F6), // Azul medio
+        Color(0xFF60A5FA)  // Azul claro
+    )
+)
+```
+**¿Qué crea esto?**
+Un degradado vertical que va de azul oscuro arriba a azul claro abajo, dando un efecto visual elegante.
 
-    Column {
+### Estructura Principal con Column
+```kotlin
+Column(
+    modifier = Modifier
+        .fillMaxSize()
+        .background(backgroundGradient)
+) {
+    // Contenido aquí
+}
+```
+**Explicación:**
+- `Column`: Organiza elementos verticalmente (uno debajo del otro)
+- `fillMaxSize()`: Ocupa toda la pantalla
+- `background(backgroundGradient)`: Aplica nuestro gradiente de fondo
 
-        // Cabecera
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            //  CABECERA CON TOOLBAR
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
+### Header de la Aplicación
+```kotlin
+Card(
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(bottom = 16.dp),
+    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.95f)),
+    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+) {
+    // Contenido del header
+}
+```
+**¿Qué hace cada parámetro?**
+- `fillMaxWidth()`: Ocupa todo el ancho
+- `padding(bottom = 16.dp)`: Espacio abajo de 16 píxeles
+- `RoundedCornerShape`: Esquinas redondeadas solo abajo
+- `alpha = 0.95f`: Transparencia del 95% (5% transparente)
+- `elevation = 8.dp`: Sombra de 8 píxeles
 
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Capturar Fotos",
-                            fontSize = 20.sp,
-                            color = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF00695C))
-            )
-
-        //Cuerpo
-        AndroidView(factory = { ctx ->
-            PreviewView(ctx).also { previewView ->
-                cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    val preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-
-                    val capture = ImageCapture.Builder().build()
-                    imageCapture = capture
-
-                    val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
-                    cameraProvider.unbindAll()
-                    cameraProvider.bindToLifecycle(
-                        lifecycleOwner, cameraSelector, preview, capture
-                    )
-                }, ContextCompat.getMainExecutor(ctx))
-            }
-        }, modifier = Modifier.size(250.dp))
-
-        Spacer(modifier = Modifier.size(40.dp))
-
-        Button(onClick = {
-
-            val file = File(context.cacheDir, "photo_${System.currentTimeMillis()}.jpg")
-            val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
-
-            imageCapture?.takePicture(
-                outputOptions,
-                ContextCompat.getMainExecutor(context),
-                object : ImageCapture.OnImageSavedCallback {
-                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                        viewModel.addPhoto(bitmap)
-                    }
-
-                    override fun onError(exception: ImageCaptureException) {
-                        Log.e("Camera", "Error: ${exception.message}")
-                    }
-                }
-            )
-        }) {
-            Text("Capturar Foto")
+### Vista de la Cámara
+```kotlin
+AndroidView(
+    factory = { ctx ->
+        PreviewView(ctx).apply {
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+        }.also { previewView ->
+            cameraProviderFuture.addListener({
+                // Configuración de la cámara
+            }, ContextCompat.getMainExecutor(ctx))
         }
+    },
+    modifier = Modifier
+        .fillMaxWidth()
+        .height(400.dp)
+        .clip(RoundedCornerShape(20.dp))
+)
+```
+**Explicación completa:**
+- `AndroidView`: Permite usar vistas nativas de Android en Compose
+- `PreviewView`: Vista especial para mostrar la vista previa de la cámara
+- `FILL_CENTER`: Escala la imagen para llenar el espacio, centrándola
+- `addListener`: Escucha cuando la cámara está lista
+- `height(400.dp)`: Altura fija de 400 píxeles
+- `clip(RoundedCornerShape(20.dp))`: Esquinas redondeadas
 
-        LazyColumn {
-            items(viewModel.photos) { photo ->
+### Configuración de la Cámara
+```kotlin
+val cameraProvider = cameraProviderFuture.get()
+val preview = Preview.Builder().build().also {
+    it.setSurfaceProvider(previewView.surfaceProvider)
+}
+
+val capture = ImageCapture.Builder()
+    .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+    .build()
+
+val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+```
+**¿Qué configura cada parte?**
+- `cameraProvider`: Administrador principal de la cámara
+- `preview`: Configuración para mostrar la vista previa
+- `setSurfaceProvider`: Conecta la vista previa con nuestra UI
+- `ImageCapture`: Configuración para tomar fotos
+- `CAPTURE_MODE_MAXIMIZE_QUALITY`: Prioriza la calidad sobre la velocidad
+- `DEFAULT_BACK_CAMERA`: Usa la cámara trasera por defecto
+
+### Botón de Captura
+```kotlin
+FloatingActionButton(
+    onClick = {
+        capturePhoto(context, imageCapture, viewModel)
+    },
+    modifier = Modifier
+        .size(80.dp)
+        .shadow(8.dp, CircleShape),
+    containerColor = Color.White,
+    contentColor = Color(0xFF1E3A8A)
+) {
+    Text(text = "📸", fontSize = 32.sp)
+}
+```
+**Explicación:**
+- `FloatingActionButton`: Botón circular flotante (típico de Material Design)
+- `onClick`: Qué hacer cuando se toca el botón
+- `size(80.dp)`: Tamaño de 80 píxeles
+- `shadow(8.dp, CircleShape)`: Sombra circular
+- `containerColor`: Color de fondo del botón
+- `contentColor`: Color del contenido (emoji)
+
+### Galería de Fotos
+```kotlin
+if (viewModel.photos.isNotEmpty()) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(viewModel.photos) { photo ->
+            Card(
+                modifier = Modifier
+                    .size(80.dp)
+                    .shadow(4.dp, RoundedCornerShape(12.dp)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Image(
                     bitmap = photo.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier.size(200.dp)
+                    contentDescription = "Foto capturada",
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
     }
-        //pie de pagina
-        //val horaActual = HoraActualView()
-
-
-        Text(
-           // text = "© 2025 UNP Informática • $horaActual • Piura, Perú",
-            text = "© 2025 UNP Informática •  Piura, Perú",
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp,
-            color = Color.Red
-        )
 }
+```
+**¿Cómo funciona?**
+- `if (viewModel.photos.isNotEmpty())`: Solo muestra si hay fotos
+- `LazyRow`: Lista horizontal eficiente (solo carga lo visible)
+- `spacedBy(12.dp)`: Espacio de 12 píxeles entre fotos
+- `items(viewModel.photos)`: Crea un elemento por cada foto
+- `asImageBitmap()`: Convierte la foto al formato que Compose entiende
 
-}
-private fun Int.asImageBitmap(): ImageBitmap {
-return TODO("Provide the return value")
-}
+---
 
+## 📸 6. FUNCIÓN DE CAPTURA DE FOTOS
 
+### Función capturePhoto()
+```kotlin
+private fun capturePhoto(context: Context, imageCapture: ImageCapture?, viewModel: CameraViewModel) {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val fileName = "foto_$timeStamp.jpg"
+```
+**¿Qué hace esta parte?**
+- Crea un nombre único para cada foto usando fecha y hora
+- Formato: "foto_20250922_143025.jpg"
+- `SimpleDateFormat`: Formatea la fecha
+- `Date()`: Fecha y hora actual
 
-=====================
-CameraViewModel
-===================
-package com.example.tomar_foto_compose
+### Creación del Archivo Temporal
+```kotlin
+val tempFile = File(context.cacheDir, fileName)
+val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
+```
+**Explicación:**
+- `context.cacheDir`: Carpeta temporal de la aplicación
+- `File(directorio, nombre)`: Crea referencia al archivo
+- `OutputFileOptions`: Configuración de dónde guardar la foto
 
-import android.graphics.Bitmap
-import androidx.compose.runtime.mutableStateListOf
-import androidx.lifecycle.ViewModel
-
-class CameraViewModel : ViewModel() {
-private val _photos = mutableStateListOf<Bitmap>()
-val photos: List<Bitmap> get() = _photos
-
-    fun addPhoto(photo: Bitmap) {
-        _photos.add(photo)
-    }
-}
-
-==============
-Color.kt
-===============
-package com.example.tomar_foto_compose.ui.theme
-
-import androidx.compose.ui.graphics.Color
-
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
-
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
-==============
-Plantilla.kt
-============
-package com.example.tomar_foto_compose.ui.theme
-
-
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.tomar_foto_compose.CameraViewModel
-import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ViewCapturaFoto(name: String, modifier: Modifier = Modifier) {
-
-
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        //  CABECERA CON TOOLBAR
-        TopAppBar(
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Capturar Fotos",
-                        fontSize = 20.sp,
-                        color = Color.White
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF00695C))
-        )
-        //cuerpo
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(15.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val cameraViewModel: CameraViewModel = viewModel()
-            CameraScreen(viewModel = cameraViewModel)
+### Tomar la Foto
+```kotlin
+imageCapture?.takePicture(
+    outputOptions,
+    ContextCompat.getMainExecutor(context),
+    object : ImageCapture.OnImageSavedCallback {
+        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+            // Éxito: foto guardada
         }
-
-        //pie de pagina
-        val horaActual = HoraActualView()
-
-
-        Text(
-            text = "© 2025 UNP Informática • $horaActual • Piura, Perú",
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp,
-            color = Color.Red
-        )
-    }
-
-
-
-}
-
-@Composable
-fun HoraActualView(): String {
-var horaActual by remember { mutableStateOf(obtenerHoraActual()) }
-
-    // Actualiza la hora cada segundo
-// Actualiza la hora cada segundo
-LaunchedEffect(Unit) {
-while (true) {
-horaActual = obtenerHoraActual()
-delay(1000) // 1 segundo
-}
-}
-
-    return horaActual
-}
-fun obtenerHoraActual(): String {
-val formato = SimpleDateFormat("hh:mm:ss a", Locale("es", "PE"))
-return formato.format(Date())
-}
-========================
-Theme.kt
-========================
-package com.example.tomar_foto_compose.ui.theme
-
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-primary = Purple80,
-secondary = PurpleGrey80,
-tertiary = Pink80
-)
-
-private val LightColorScheme = lightColorScheme(
-primary = Purple40,
-secondary = PurpleGrey40,
-tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
-
-@Composable
-fun Tomar_Foto_ComposeTheme(
-darkTheme: Boolean = isSystemInDarkTheme(),
-// Dynamic color is available on Android 12+
-dynamicColor: Boolean = true,
-content: @Composable () -> Unit
-) {
-val colorScheme = when {
-dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-val context = LocalContext.current
-if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-}
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
-}
-======================
-Type.kt
-=================
-package com.example.tomar_foto_compose.ui.theme
-
-import androidx.compose.material3.Typography
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-
-// Set of Material typography styles to start with
-val Typography = Typography(
-bodyLarge = TextStyle(
-fontFamily = FontFamily.Default,
-fontWeight = FontWeight.Normal,
-fontSize = 16.sp,
-lineHeight = 24.sp,
-letterSpacing = 0.5.sp
-)
-/* Other default text styles to override
-titleLarge = TextStyle(
-fontFamily = FontFamily.Default,
-fontWeight = FontWeight.Normal,
-fontSize = 22.sp,
-lineHeight = 28.sp,
-letterSpacing = 0.sp
-),
-labelSmall = TextStyle(
-fontFamily = FontFamily.Default,
-fontWeight = FontWeight.Medium,
-fontSize = 11.sp,
-lineHeight = 16.sp,
-letterSpacing = 0.5.sp
-)
-*/
-)
-=====================
-MainActivity
-====================
-package com.example.tomar_foto_compose
-
-import android.content.pm.PackageManager
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.example.tomar_foto_compose.ui.theme.CameraScreen
-
-
-class MainActivity : ComponentActivity() {
-override fun onCreate(savedInstanceState: Bundle?) {
-super.onCreate(savedInstanceState)
-
-        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), 0)
-        }
-
-        val viewModel = CameraViewModel()
-        setContent {
-
-            CameraScreen(viewModel)
+        override fun onError(exception: ImageCaptureException) {
+            // Error: algo salió mal
         }
     }
+)
+```
+**¿Cómo funciona?**
+- `takePicture`: Función que toma la foto
+- `getMainExecutor`: Ejecuta en el hilo principal (UI)
+- `OnImageSavedCallback`: Interface con dos funciones:
+  - `onImageSaved`: Se llama si todo sale bien
+  - `onError`: Se llama si hay un error
 
-}
+---
 
+## 💾 7. GUARDAR EN LA GALERÍA
 
-==================
-build.gradle
-===============
-plugins {
-alias(libs.plugins.android.application)
-alias(libs.plugins.kotlin.android)
-alias(libs.plugins.kotlin.compose)
-}
-
-
-
-android {
-namespace 'com.example.tomar_foto_compose'
-compileSdk 36
-
-    defaultConfig {
-        applicationId "com.example.tomar_foto_compose"
-        minSdk 24
-        targetSdk 36
-        versionCode 1
-        versionName "1.0"
-
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+### Función savePhotoToGallery()
+```kotlin
+private fun savePhotoToGallery(context: Context, photoFile: File, fileName: String) {
+    val resolver: ContentResolver = context.contentResolver
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/MisCapturasApp")
     }
+```
+**¿Qué es cada cosa?**
+- `ContentResolver`: Administrador de contenido del sistema
+- `ContentValues`: Como un diccionario de datos
+- `DISPLAY_NAME`: Nombre que aparecerá en la galería
+- `MIME_TYPE`: Tipo de archivo (imagen JPEG)
+- `RELATIVE_PATH`: Ruta donde guardar (Pictures/MisCapturasApp)
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+### Insertar en MediaStore
+```kotlin
+val imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+imageUri?.let { uri ->
+    resolver.openOutputStream(uri)?.use { outputStream ->
+        FileInputStream(photoFile).use { inputStream ->
+            inputStream.copyTo(outputStream)
         }
     }
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
-    kotlinOptions {
-        jvmTarget = '11'
-    }
-    buildFeatures {
-        compose true
-    }
 }
+```
+**¿Qué hace este código?**
+1. `insert`: Crea entrada en la galería del sistema
+2. `openOutputStream`: Abre el archivo para escribir
+3. `FileInputStream`: Lee nuestro archivo temporal
+4. `copyTo`: Copia el archivo al destino final
+5. `use`: Cierra automáticamente los archivos (evita memory leaks)
 
-dependencies {
-implementation libs.androidx.core.ktx
-implementation libs.androidx.lifecycle.runtime.ktx
-implementation libs.androidx.activity.compose
-implementation platform(libs.androidx.compose.bom)
-implementation libs.androidx.ui
-implementation libs.androidx.ui.graphics
-implementation libs.androidx.ui.tooling.preview
-implementation libs.androidx.material3
+---
 
-    implementation(libs.androidx.camera.camera2)
-    implementation(libs.androidx.camera.lifecycle)
-    implementation(libs.androidx.camera.view)
-    implementation(libs.ui)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+## 🔄 8. FLUJO COMPLETO DE LA APLICACIÓN
 
+### Secuencia de Eventos:
 
-    testImplementation libs.junit
-    androidTestImplementation libs.androidx.junit
-    androidTestImplementation libs.androidx.espresso.core
-    androidTestImplementation platform(libs.androidx.compose.bom)
-    androidTestImplementation libs.androidx.ui.test.junit4
-    debugImplementation libs.androidx.ui.tooling
-    debugImplementation libs.androidx.ui.test.manifest
-}
-======================
-ic_launcher_background.xml
-======================
-<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-android:width="108dp"
-android:height="108dp"
-android:viewportWidth="108"
-android:viewportHeight="108">
-<path
-android:fillColor="#3DDC84"
-android:pathData="M0,0h108v108h-108z" />
-<path
-android:fillColor="#00000000"
-android:pathData="M9,0L9,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,0L19,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M29,0L29,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M39,0L39,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M49,0L49,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M59,0L59,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M69,0L69,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M79,0L79,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M89,0L89,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M99,0L99,108"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,9L108,9"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,19L108,19"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,29L108,29"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,39L108,39"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,49L108,49"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,59L108,59"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,69L108,69"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,79L108,79"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,89L108,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M0,99L108,99"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,29L89,29"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,39L89,39"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,49L89,49"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,59L89,59"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,69L89,69"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M19,79L89,79"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M29,19L29,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M39,19L39,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M49,19L49,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M59,19L59,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M69,19L69,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-<path
-android:fillColor="#00000000"
-android:pathData="M79,19L79,89"
-android:strokeWidth="0.8"
-android:strokeColor="#33FFFFFF" />
-</vector>
+1. **Inicio de la App**
+   - `MainActivity.onCreate()` se ejecuta
+   - Se solicitan permisos necesarios
+   - Se crea el `CameraViewModel`
+   - Se muestra `CameraScreen`
 
-======================
-ic_launcher_foreground.xml
-======================
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-xmlns:aapt="http://schemas.android.com/aapt"
-android:width="108dp"
-android:height="108dp"
-android:viewportWidth="108"
-android:viewportHeight="108">
-<path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-<aapt:attr name="android:fillColor">
-<gradient
-android:endX="85.84757"
-android:endY="92.4963"
-android:startX="42.9492"
-android:startY="49.59793"
-android:type="linear">
-<item
-android:color="#44000000"
-android:offset="0.0" />
-<item
-android:color="#00000000"
-android:offset="1.0" />
-</gradient>
-</aapt:attr>
-</path>
-<path
-android:fillColor="#FFFFFF"
-android:fillType="nonZero"
-android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
-android:strokeWidth="1"
-android:strokeColor="#00000000" />
-</vector>
-======================
+2. **Configuración de la Cámara**
+   - Se inicializa `ProcessCameraProvider`
+   - Se configura la vista previa
+   - Se prepara `ImageCapture`
+   - Se conecta todo al ciclo de vida
 
-======================
+3. **Captura de Foto**
+   - Usuario toca el botón 📸
+   - Se llama `capturePhoto()`
+   - Se genera nombre único
+   - Se toma la foto en archivo temporal
 
-======================
+4. **Guardado**
+   - Se llama `savePhotoToGallery()`
+   - Se crea entrada en MediaStore
+   - Se copia archivo a galería
+   - Se elimina archivo temporal
 
-======================
+5. **Actualización de UI**
+   - Se carga la foto como Bitmap
+   - Se agrega al ViewModel
+   - La UI se actualiza automáticamente
+   - Se muestra en la galería horizontal
 
-======================
+---
 
-======================
+## 🎨 9. CONCEPTOS CLAVE DE JETPACK COMPOSE
 
-======================
+### ¿Qué es Jetpack Compose?
+Es la nueva forma de crear interfaces en Android usando código Kotlin en lugar de XML.
 
-======================
+### Conceptos Importantes:
 
-======================
+**@Composable**
+- Funciones que crean UI
+- Se pueden combinar como bloques de construcción
+- Se actualizan automáticamente cuando cambian los datos
 
-======================
+**State (Estado)**
+- `remember`: Mantiene valores entre recomposiciones
+- `mutableStateOf`: Valor que puede cambiar y actualiza la UI
+- `by`: Delegado que simplifica el acceso
 
-======================
+**Modifiers**
+- Configuran cómo se ve y comporta un elemento
+- Se pueden encadenar: `.fillMaxSize().padding(16.dp)`
+- Son inmutables (no modifican el original)
 
-======================
+**Layouts**
+- `Column`: Vertical
+- `Row`: Horizontal
+- `Box`: Superpuesto
+- `LazyColumn/LazyRow`: Listas eficientes
 
+---
 
+## 🚀 10. PUNTOS CLAVE PARA TU EXPOSICIÓN
 
+### Ventajas de esta Implementación:
+
+1. **Arquitectura Moderna**
+   - MVVM con ViewModel
+   - Jetpack Compose para UI
+   - CameraX para cámara
+
+2. **Manejo Robusto de Permisos**
+   - Verificación automática
+   - Solicitud dinámica
+   - Manejo de errores
+
+3. **UI Responsive y Moderna**
+   - Material Design 3
+   - Gradientes y sombras
+   - Animaciones sutiles
+
+4. **Persistencia Confiable**
+   - Guardado en MediaStore
+   - Visible en galería del sistema
+   - Nombres únicos por timestamp
+
+5. **Experiencia de Usuario Excelente**
+   - Feedback visual inmediato
+   - Mensajes informativos
+   - Galería integrada
+
+### Tecnologías Utilizadas:
+
+- **Kotlin**: Lenguaje moderno y seguro
+- **Jetpack Compose**: UI declarativa
+- **CameraX**: API moderna de cámara
+- **ViewModel**: Manejo de estado
+- **Material Design 3**: Diseño consistente
+
+---
+
+## 📚 Glosario de Términos
+
+**Activity**: Pantalla de la aplicación
+**Composable**: Función que crea UI
+**ViewModel**: Maneja datos y lógica
+**State**: Estado que puede cambiar
+**Modifier**: Configuración de elementos UI
+**Bitmap**: Formato de imagen en memoria
+**ContentResolver**: Administrador de contenido del sistema
+**MediaStore**: Base de datos de archivos multimedia
+**Lifecycle**: Ciclo de vida de componentes Android
+
+---
+
+¡Con esta guía tienes todo lo necesario para entender y explicar tu aplicación de cámara! 🎉
